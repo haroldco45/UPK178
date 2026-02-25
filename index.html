@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>App UPK178 - Rastreo Real Time</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
+        #map { height: 70vh; width: 100%; }
+        .info-panel { padding: 15px; background: #f4f4f4; border-top: 2px solid #333; }
+        .btn-whatsapp { background: #25D366; color: white; padding: 10px; text-decoration: none; border-radius: 5px; display: inline-block; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+    <div id="map"></div>
+
+    <div class="info-panel">
+        <h2>App UPK178 - Control de Flota</h2>
+        <p><strong>Conductor:</strong> Juan Pérez (Ejemplo)</p>
+        <p><strong>Placa:</strong> UPK 178</p>
+        <p><strong>Celular Conductor:</strong> 3103620459</p>
+        <p><strong>Última Actualización:</strong> <span id="fecha-hora">Cargando...</span></p>
+        
+        <a id="link-ws" href="#" target="_blank" class="btn-whatsapp">
+            📲 Enviar Ubicación a mi WhatsApp (3117700431)
+        </a>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Coordenadas iniciales (Ejemplo: Bogotá, Colombia)
+        let lat = 4.6097;
+        let lng = -74.0817;
+
+        // Inicializar Mapa
+        const map = L.map('map').setView([lat, lng], 15);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+        // Icono de Carro
+        const carIcon = L.icon({
+            iconUrl: 'https://cdn-icons-png.flaticon.com/512/744/744465.png',
+            iconSize: [40, 40]
+        });
+
+        const marker = L.marker([lat, lng], {icon: carIcon}).addTo(map);
+
+        // Función para simular movimiento y actualizar datos
+        function actualizarUbicacion() {
+            // Simulación: movemos un poco la latitud
+            lat += 0.0001; 
+            lng += 0.0001;
+
+            const nuevaPos = [lat, lng];
+            marker.setLatLng(nuevaPos);
+            map.panTo(nuevaPos);
+
+            // Fecha y Hora Real Colombia
+            const ahora = new Date().toLocaleString("es-CO", {timeZone: "America/Bogota"});
+            document.getElementById('fecha-hora').innerText = ahora;
+
+            // Actualizar Link de WhatsApp
+            const mensaje = `Reporte UPK178\nFecha: ${ahora}\nUbicación: https://www.google.com/maps?q=${lat},${lng}`;
+            document.getElementById('link-ws').href = `https://wa.me/573117700431?text=${encodeURIComponent(mensaje)}`;
+        }
+
+        // Actualizar cada 3 segundos
+        setInterval(actualizarUbicacion, 3000);
+    </script>
+</body>
+</html>
