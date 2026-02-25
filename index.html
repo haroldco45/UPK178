@@ -3,116 +3,115 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>App UPK178 - Control de Rastreo</title>
+    <title>App UPK178 - Rastreo en Vivo</title>
+    
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
     <style>
-        body { font-family: 'Arial', sans-serif; margin: 0; background: #f0f2f5; }
-        #map { height: 60vh; width: 100%; }
-        .controls { padding: 20px; background: white; border-radius: 20px 20px 0 0; margin-top: -20px; position: relative; z-index: 1000; box-shadow: 0 -5px 15px rgba(0,0,0,0.1); }
-        .status-badge { display: inline-block; padding: 5px 10px; border-radius: 10px; font-size: 12px; font-weight: bold; margin-bottom: 10px; }
-        .status-on { background: #e8f5e9; color: #2e7d32; }
-        .status-off { background: #ffebee; color: #c62828; }
-        .btn { width: 100%; padding: 15px; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 16px; margin-bottom: 10px; transition: 0.3s; }
-        .btn-toggle { background: #dc3545; color: white; }
-        .btn-toggle.active { background: #28a745; }
-        .btn-ws { background: #25D366; color: white; text-align: center; display: block; text-decoration: none; }
-        .info-txt { font-size: 14px; color: #555; line-height: 1.5; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: #1a1a1a; color: white; }
+        #map { height: 60vh; width: 100%; border-bottom: 4px solid #ff9800; }
+        .panel { padding: 20px; text-align: center; background: #222; border-radius: 25px 25px 0 0; margin-top: -30px; position: relative; z-index: 1000; }
+        .status-badge { display: inline-block; padding: 5px 15px; border-radius: 20px; font-size: 12px; font-weight: bold; margin-bottom: 10px; border: 1px solid #444; }
+        .on { color: #2ecc71; background: rgba(46, 204, 113, 0.1); }
+        .off { color: #e74c3c; background: rgba(231, 76, 60, 0.1); }
+        .btn { width: 100%; padding: 16px; border: none; border-radius: 12px; font-weight: bold; font-size: 16px; cursor: pointer; transition: 0.3s; margin-top: 10px; }
+        .btn-green { background: #28a745; color: white; }
+        .btn-red { background: #dc3545; color: white; display: none; }
+        .info-car { font-size: 14px; margin: 10px 0; color: #bbb; line-height: 1.5; }
+        .vibras-logo { color: #ff9800; font-weight: bold; font-style: italic; margin-top: 15px; font-size: 1.1rem; }
     </style>
 </head>
 <body>
 
 <div id="map"></div>
 
-<div class="controls">
-    <div id="badge" class="status-badge status-off">SERVICIO: APAGADO</div>
+<div class="panel">
+    <div id="status" class="status-badge off">ESTADO: APAGADO</div>
     
-    <div class="info-txt">
-        <strong>Vehículo:</strong> UPK 178 | <strong>Cond:</strong> 3103620459<br>
-        <strong>Ubicación:</strong> <span id="coords">Pendiente...</span>
+    <div class="info-car">
+        <strong>VEHÍCULO:</strong> UPK 178 <br>
+        <strong>CONDUCTOR:</strong> 3103620459 | <strong>NOTIFICAR A:</strong> 3117700431
     </div>
 
-    <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
+    <button id="btnStart" class="btn btn-green" onclick="iniciarServicio()">▶️ INICIAR RECORRIDO</button>
+    <button id="btnStop" class="btn btn-red" onclick="detenerServicio()">⏹️ DETENER SERVICIO</button>
 
-    <button id="toggleBtn" class="btn btn-toggle" onclick="toggleServicio()">INICIAR RASTREO</button>
-    
-    <a id="link-ws" href="#" target="_blank" class="btn btn-ws" style="display:none;">📲 NOTIFICAR A MI CELULAR (3117700431)</a>
+    <div class="vibras-logo">✨ Vibras Positivas ✨</div>
 </div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-    let map, marker, watchID = null;
-    let path = L.polyline([], {color: '#007bff', weight: 5});
-    let activo = false;
+    // Configuración real de tu Firebase UPK178
+    const firebaseConfig = {
+        apiKey: "AIzaSyCTdSrjNaXauHAkWE0HLBJOcgBaEh5E6Gw",
+        authDomain: "upk178-d8cbd.firebaseapp.com",
+        databaseURL: "https://upk178-d8cbd-default-rtdb.firebaseio.com",
+        projectId: "upk178-d8cbd",
+        storageBucket: "upk178-d8cbd.firebasestorage.app",
+        messagingSenderId: "406972511555",
+        appId: "1:406972511555:web:90828ea0fe17fe332a2bf6"
+    };
+
+    // Inicializar Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database().ref('monitoreo_upk178');
 
     // Inicializar Mapa centrado en Caucasia
-    function initMap() {
-        map = L.map('map').setView([7.9789, -75.1991], 15);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-        marker = L.marker([7.9789, -75.1991]).addTo(map);
-        path.addTo(map);
-    }
+    var map = L.map('map').setView([7.9789, -75.1991], 15);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+    var marker = L.marker([7.9789, -75.1991]).addTo(map);
 
-    function toggleServicio() {
-        const btn = document.getElementById('toggleBtn');
-        const badge = document.getElementById('badge');
-        const wsBtn = document.getElementById('link-ws');
+    let watchID = null;
 
-        if (!activo) {
-            // ENCENDER
-            if ("geolocation" in navigator) {
-                activo = true;
-                btn.innerText = "APAGAR SERVICIO";
-                btn.classList.add('active'); // Se pone verde
-                btn.style.background = "#dc3545"; // Cambia a rojo para avisar que puede apagar
-                btn.innerText = "⛔ DETENER RASTREO (OFF)";
-                
-                badge.innerText = "SERVICIO: ACTIVO (SIGUIENDO)";
-                badge.className = "status-badge status-on";
-                wsBtn.style.display = "block";
+    // --- LÓGICA DEL CONDUCTOR (ENVIAR) ---
+    function iniciarServicio() {
+        if ("geolocation" in navigator) {
+            document.getElementById('btnStart').style.display = 'none';
+            document.getElementById('btnStop').style.display = 'block';
+            document.getElementById('status').innerText = "ESTADO: EN VIVO";
+            document.getElementById('status').className = "status-badge on";
 
-                watchID = navigator.geolocation.watchPosition(updatePos, errorGPS, {
-                    enableHighAccuracy: true,
-                    maximumAge: 0
+            watchID = navigator.geolocation.watchPosition(function(pos) {
+                const lat = pos.coords.latitude;
+                const lng = pos.coords.longitude;
+                const hora = new Date().toLocaleTimeString("es-CO");
+
+                // Subir a tu Realtime Database
+                db.set({
+                    lat: lat,
+                    lng: lng,
+                    placa: "UPK 178",
+                    hora: hora,
+                    lastUpdate: Date.now()
                 });
-            }
-        } else {
-            // APAGAR
-            activo = false;
-            navigator.geolocation.clearWatch(watchID);
-            watchID = null;
-            
-            btn.innerText = "INICIAR RASTREO (ON)";
-            btn.style.background = "#28a745";
-            
-            badge.innerText = "SERVICIO: APAGADO";
-            badge.className = "status-badge status-off";
-            wsBtn.style.display = "none";
-            document.getElementById('coords').innerText = "Rastreo detenido.";
+            }, null, { enableHighAccuracy: true });
         }
     }
 
-    function updatePos(pos) {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        const nuevaPos = [lat, lng];
-
-        marker.setLatLng(nuevaPos);
-        map.panTo(nuevaPos);
-        path.addLatLng(nuevaPos);
-
-        document.getElementById('coords').innerText = lat.toFixed(5) + ", " + lng.toFixed(5);
-        
-        // Actualizar mensaje de WhatsApp
-        const hora = new Date().toLocaleString("es-CO", {timeZone: "America/Bogota"});
-        const msj = `*REPORTE UPK 178*\n📍 Ubicación: https://www.google.com/maps?q=${lat},${lng}\n🕒 ${hora}`;
-        document.getElementById('link-ws').href = `https://wa.me/573117700431?text=${encodeURIComponent(msj)}`;
+    function detenerServicio() {
+        if (watchID) {
+            navigator.geolocation.clearWatch(watchID);
+            document.getElementById('btnStart').style.display = 'block';
+            document.getElementById('btnStop').style.display = 'none';
+            document.getElementById('status').innerText = "ESTADO: APAGADO";
+            document.getElementById('status').className = "status-badge off";
+        }
     }
 
-    function errorGPS(err) {
-        alert("Error al obtener GPS: " + err.message);
-    }
-
-    window.onload = initMap;
+    // --- LÓGICA DE TU CELULAR (RECIBIR) ---
+    db.on('value', (snapshot) => {
+        const data = snapshot.val();
+        if (data) {
+            const pos = [data.lat, data.lng];
+            marker.setLatLng(pos);
+            map.panTo(pos);
+            marker.bindPopup(`<b>UPK 178</b><br>Hora: ${data.hora}`).openPopup();
+        }
+    });
 </script>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </body>
 </html>
