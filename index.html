@@ -6,22 +6,21 @@
     <title>App UPK178 - Rastreo en Vivo</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: #1a1a1a; color: white; }
-        #map { height: 60vh; width: 100%; border-bottom: 4px solid #ff9800; }
-        .panel { padding: 20px; text-align: center; background: #222; border-radius: 25px 25px 0 0; margin-top: -30px; position: relative; z-index: 1000; }
-        .status-badge { display: inline-block; padding: 5px 15px; border-radius: 20px; font-size: 12px; font-weight: bold; margin-bottom: 10px; border: 1px solid #444; }
-        .on { color: #2ecc71; background: rgba(46, 204, 113, 0.1); }
-        .off { color: #e74c3c; background: rgba(231, 76, 60, 0.1); }
-        .btn { width: 100%; padding: 16px; border: none; border-radius: 12px; font-weight: bold; font-size: 16px; cursor: pointer; transition: 0.3s; margin-top: 10px; }
+        body { font-family: sans-serif; margin: 0; background: #1a1a1a; color: white; overflow: hidden; }
+        /* Ajuste para que el mapa no se vea negro */
+        #map { height: 65vh; width: 100%; background: #222; }
+        .panel { padding: 20px; text-align: center; background: #222; border-top: 3px solid #ff9800; }
+        .btn { width: 100%; padding: 15px; border: none; border-radius: 10px; font-weight: bold; font-size: 16px; cursor: pointer; }
         .btn-green { background: #28a745; color: white; }
         .btn-red { background: #dc3545; color: white; display: none; }
-        .info-car { font-size: 14px; margin: 10px 0; color: #bbb; line-height: 1.5; }
-        .vibras-logo { color: #ff9800; font-weight: bold; font-style: italic; margin-top: 15px; font-size: 1.1rem; }
+        .vibras-logo { color: #ff9800; font-weight: bold; font-style: italic; margin-top: 10px; }
+        .info { font-size: 13px; margin-bottom: 10px; color: #ccc; }
     </style>
 </head>
 <body>
@@ -29,21 +28,14 @@
 <div id="map"></div>
 
 <div class="panel">
-    <div id="status" class="status-badge off">ESTADO: APAGADO</div>
-    
-    <div class="info-car">
-        <strong>VEHÍCULO:</strong> UPK 178 <br>
-        <strong>CONDUCTOR:</strong> 3103620459 | <strong>NOTIFICAR A:</strong> 3117700431
-    </div>
-
-    <button id="btnStart" class="btn btn-green" onclick="iniciarServicio()">▶️ INICIAR RECORRIDO</button>
-    <button id="btnStop" class="btn btn-red" onclick="detenerServicio()">⏹️ DETENER SERVICIO</button>
-
+    <div class="info">🚚 UPK 178 | Harold Augusto</div>
+    <button id="btnStart" class="btn btn-green" onclick="iniciarServicio()">▶️ INICIAR RASTREO (CONDUCTOR)</button>
+    <button id="btnStop" class="btn btn-red" onclick="detenerServicio()">⏹️ DETENER RASTREO</button>
     <div class="vibras-logo">✨ Vibras Positivas ✨</div>
 </div>
 
 <script>
-    // Configuración real de tu Firebase UPK178
+    // Configuración Firebase (Harold Augusto)
     const firebaseConfig = {
         apiKey: "AIzaSyCTdSrjNaXauHAkWE0HLBJOcgBaEh5E6Gw",
         authDomain: "upk178-d8cbd.firebaseapp.com",
@@ -54,64 +46,51 @@
         appId: "1:406972511555:web:90828ea0fe17fe332a2bf6"
     };
 
-    // Inicializar Firebase
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database().ref('monitoreo_upk178');
 
-    // Inicializar Mapa centrado en Caucasia
+    // Inicializar Mapa (Caucasia)
     var map = L.map('map').setView([7.9789, -75.1991], 15);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-    var marker = L.marker([7.9789, -75.1991]).addTo(map);
+    
+    // Capa de mapa (OpenStreetMap)
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '© OpenStreetMap'
+    }).addTo(map);
 
+    var marker = L.marker([7.9789, -75.1991]).addTo(map);
     let watchID = null;
 
-    // --- LÓGICA DEL CONDUCTOR (ENVIAR) ---
     function iniciarServicio() {
         if ("geolocation" in navigator) {
             document.getElementById('btnStart').style.display = 'none';
             document.getElementById('btnStop').style.display = 'block';
-            document.getElementById('status').innerText = "ESTADO: EN VIVO";
-            document.getElementById('status').className = "status-badge on";
 
             watchID = navigator.geolocation.watchPosition(function(pos) {
                 const lat = pos.coords.latitude;
                 const lng = pos.coords.longitude;
-                const hora = new Date().toLocaleTimeString("es-CO");
-
-                // Subir a tu Realtime Database
-                db.set({
-                    lat: lat,
-                    lng: lng,
-                    placa: "UPK 178",
-                    hora: hora,
-                    lastUpdate: Date.now()
-                });
-            }, null, { enableHighAccuracy: true });
+                db.set({ lat, lng, hora: new Date().toLocaleTimeString() });
+            }, (err) => alert("Activa el GPS de tu celular"), { enableHighAccuracy: true });
         }
     }
 
     function detenerServicio() {
-        if (watchID) {
-            navigator.geolocation.clearWatch(watchID);
-            document.getElementById('btnStart').style.display = 'block';
-            document.getElementById('btnStop').style.display = 'none';
-            document.getElementById('status').innerText = "ESTADO: APAGADO";
-            document.getElementById('status').className = "status-badge off";
-        }
+        navigator.geolocation.clearWatch(watchID);
+        document.getElementById('btnStart').style.display = 'block';
+        document.getElementById('btnStop').style.display = 'none';
     }
 
-    // --- LÓGICA DE TU CELULAR (RECIBIR) ---
+    // ESCUCHAR EN TIEMPO REAL
     db.on('value', (snapshot) => {
         const data = snapshot.val();
         if (data) {
-            const pos = [data.lat, data.lng];
-            marker.setLatLng(pos);
-            map.panTo(pos);
-            marker.bindPopup(`<b>UPK 178</b><br>Hora: ${data.hora}`).openPopup();
+            marker.setLatLng([data.lat, data.lng]);
+            map.panTo([data.lat, data.lng]);
         }
     });
-</script>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    // Forzar el redimensionamiento para evitar cuadros negros
+    setTimeout(() => { map.invalidateSize(); }, 500);
+</script>
 </body>
 </html>
