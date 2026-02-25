@@ -3,39 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>App UPK178 - Rastreo en Vivo</title>
-    
+    <title>App UPK178 - Rastreo Harold</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-
     <style>
-        body { font-family: sans-serif; margin: 0; background: #1a1a1a; color: white; overflow: hidden; }
-        /* Ajuste para que el mapa no se vea negro */
-        #map { height: 65vh; width: 100%; background: #222; }
-        .panel { padding: 20px; text-align: center; background: #222; border-top: 3px solid #ff9800; }
-        .btn { width: 100%; padding: 15px; border: none; border-radius: 10px; font-weight: bold; font-size: 16px; cursor: pointer; }
-        .btn-green { background: #28a745; color: white; }
-        .btn-red { background: #dc3545; color: white; display: none; }
-        .vibras-logo { color: #ff9800; font-weight: bold; font-style: italic; margin-top: 10px; }
-        .info { font-size: 13px; margin-bottom: 10px; color: #ccc; }
+        body { font-family: sans-serif; margin: 0; background: #121212; color: white; }
+        #map { height: 50vh; width: 100%; border-bottom: 3px solid #ff9800; }
+        .info-panel { padding: 15px; background: #1e1e1e; border-radius: 15px; margin: 10px; border: 1px solid #333; }
+        .btn { width: 100%; padding: 15px; border: none; border-radius: 10px; font-weight: bold; font-size: 16px; cursor: pointer; margin-top: 10px; }
+        .btn-start { background: #28a745; color: white; }
+        .btn-stop { background: #dc3545; color: white; display: none; }
+        .btn-ws { background: #25D366; color: white; text-decoration: none; display: block; text-align: center; }
+        .vibras { color: #ff9800; text-align: center; font-weight: bold; margin-top: 10px; }
     </style>
 </head>
 <body>
-
-<div id="map"></div>
-
-<div class="panel">
-    <div class="info">🚚 UPK 178 | Harold Augusto</div>
-    <button id="btnStart" class="btn btn-green" onclick="iniciarServicio()">▶️ INICIAR RASTREO (CONDUCTOR)</button>
-    <button id="btnStop" class="btn btn-red" onclick="detenerServicio()">⏹️ DETENER RASTREO</button>
-    <div class="vibras-logo">✨ Vibras Positivas ✨</div>
-</div>
+    <div id="map"></div>
+    <div class="info-panel">
+        <h3 style="color:#ff9800; margin:0; text-align:center;">🚚 MONITOREO UPK 178</h3>
+        <p style="margin:5px 0;"><strong>CONDUCTOR:</strong> 3103620459</p>
+        <p style="margin:5px 0;"><strong>DUEÑO (HAROLD):</strong> 3117700431</p>
+        <p style="margin:5px 0;"><strong>ESTADO:</strong> <span id="status" style="color:red">APAGADO</span></p>
+        
+        <button id="start" class="btn btn-start" onclick="encender()">▶️ INICIAR RECORRIDO</button>
+        <button id="stop" class="btn btn-stop" onclick="apagar()">⏹️ DETENER RASTREO</button>
+        <a id="ws" href="#" target="_blank" class="btn btn-ws">📲 ENVIAR UBICACIÓN A HAROLD</a>
+        <div class="vibras">✨ Vibras Positivas ✨</div>
+    </div>
 
 <script>
-    // Configuración Firebase (Harold Augusto)
     const firebaseConfig = {
         apiKey: "AIzaSyCTdSrjNaXauHAkWE0HLBJOcgBaEh5E6Gw",
         authDomain: "upk178-d8cbd.firebaseapp.com",
@@ -45,52 +43,36 @@
         messagingSenderId: "406972511555",
         appId: "1:406972511555:web:90828ea0fe17fe332a2bf6"
     };
-
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database().ref('monitoreo_upk178');
 
-    // Inicializar Mapa (Caucasia)
     var map = L.map('map').setView([7.9789, -75.1991], 15);
-    
-    // Capa de mapa (OpenStreetMap)
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '© OpenStreetMap'
-    }).addTo(map);
-
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
     var marker = L.marker([7.9789, -75.1991]).addTo(map);
-    let watchID = null;
 
-    function iniciarServicio() {
-        if ("geolocation" in navigator) {
-            document.getElementById('btnStart').style.display = 'none';
-            document.getElementById('btnStop').style.display = 'block';
-
-            watchID = navigator.geolocation.watchPosition(function(pos) {
+    let watchID;
+    function encender() {
+        if (navigator.geolocation) {
+            document.getElementById('start').style.display='none';
+            document.getElementById('stop').style.display='block';
+            document.getElementById('status').innerText="EN VIVO";
+            document.getElementById('status').style.color="green";
+            watchID = navigator.geolocation.watchPosition(pos => {
                 const lat = pos.coords.latitude;
                 const lng = pos.coords.longitude;
-                db.set({ lat, lng, hora: new Date().toLocaleTimeString() });
-            }, (err) => alert("Activa el GPS de tu celular"), { enableHighAccuracy: true });
+                db.set({lat, lng, hora: new Date().toLocaleTimeString()});
+                document.getElementById('ws').href = `https://wa.me/573117700431?text=UPK178 llego a tienda: https://www.google.com/maps?q=${lat},${lng}`;
+            }, null, {enableHighAccuracy:true});
         }
     }
-
-    function detenerServicio() {
+    function apagar() {
         navigator.geolocation.clearWatch(watchID);
-        document.getElementById('btnStart').style.display = 'block';
-        document.getElementById('btnStop').style.display = 'none';
+        location.reload();
     }
-
-    // ESCUCHAR EN TIEMPO REAL
-    db.on('value', (snapshot) => {
-        const data = snapshot.val();
-        if (data) {
-            marker.setLatLng([data.lat, data.lng]);
-            map.panTo([data.lat, data.lng]);
-        }
+    db.on('value', snap => {
+        const d = snap.val();
+        if(d) { marker.setLatLng([d.lat, d.lng]); map.panTo([d.lat, d.lng]); }
     });
-
-    // Forzar el redimensionamiento para evitar cuadros negros
-    setTimeout(() => { map.invalidateSize(); }, 500);
 </script>
 </body>
 </html>
